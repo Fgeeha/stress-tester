@@ -5,7 +5,7 @@
 ## Сборка и запуск
 
 ```bash
-cd $GOPATH/src/github.com/fgeeha/stress-tester
+git clone https://github.com/Fgeeha/stress-tester.git && cd stress-tester
 go mod tidy
 go run ./cmd/stress-tester
 ```
