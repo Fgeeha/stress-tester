@@ -57,14 +57,23 @@ func runMemoryTest(ctx context.Context, config TestConfig) {
 			// Log memory allocation attempt
 			logger.LogEvent(fmt.Sprintf("Thread %d: Attempting to allocate %d MB", threadID, memPerThread), logger.EventLog, eventsChan)
 
+			allocSucceeded := false
 			// Try to allocate memory with panic recovery
 			defer func() {
+				if !allocSucceeded {
+					// signal allocation attempt even if failed
+					allocDone <- struct{}{}
+				}
 				if r := recover(); r != nil {
 					logger.LogEvent(fmt.Sprintf("Thread %d: Memory allocation failed: %v", threadID, r), logger.EventError, eventsChan)
+					if config.StopOnError && currentCancel != nil {
+						currentCancel()
+					}
 				}
 			}()
 
 			memory := make([]byte, memSize)
+			allocSucceeded = true
 			memoryBlocks[threadID] = memory // Store reference for cleanup
 
 			// Fill memory with pattern data
@@ -123,6 +132,15 @@ func runMemoryTest(ctx context.Context, config TestConfig) {
 					swapStat, err := mem.SwapMemory()
 					if err != nil {
 						logger.LogEvent(fmt.Sprintf("Thread %d: Error checking swap memory: %v", threadID, err), logger.EventError, eventsChan)
+					}
+
+					// Abort if both RAM and swap are critically low
+					if vmStat.Available < 10*1024*1024 && swapStat.Free < 10*1024*1024 {
+						logger.LogEvent(fmt.Sprintf("Thread %d: Memory critically low, stopping test", threadID), logger.EventError, eventsChan)
+						if currentCancel != nil {
+							currentCancel()
+						}
+						return
 					}
 
 					// Log detailed memory coverage information with formula explanation
