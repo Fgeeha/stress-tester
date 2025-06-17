@@ -21,6 +21,84 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 )
 
+type language int
+
+const (
+	langEN language = iota
+	langRU
+)
+
+var currentLang = langEN
+
+var translations = map[language]map[string]string{
+	langEN: {
+		"windowTitle":    "Memory/CPU Stress Tester",
+		"testingTab":     "Testing",
+		"advancedTab":    "Advanced",
+		"logTab":         "Log",
+		"settingsTab":    "Settings",
+		"systemStatus":   "System Status:",
+		"totalMemory":    "Total Memory: %d MB",
+		"freeMemory":     "Free Memory: %d MB",
+		"testSettings":   "Test Settings:",
+		"memoryMB":       "Memory (MB)",
+		"cpuThreads":     "CPU Threads",
+		"alertOnError":   "Alert on error",
+		"stopOnError":    "Stop on error",
+		"testStatus":     "Test Status:",
+		"time":           "Time: %s",
+		"coverage":       "Coverage: %s",
+		"errors":         "Errors: %d",
+		"start":          "Start",
+		"stop":           "Stop",
+		"enableCache":    "Enable CPU Cache",
+		"rng":            "RNG:",
+		"experimental":   "Experimental:",
+		"stressFPU":      "Stress FPU (Floating Point Unit)",
+		"language":       "Language",
+		"selectLang":     "Select Language",
+		"invalidNumbers": "please enter valid positive numbers for memory and threads",
+		"memExceed":      "requested memory (%d MB) exceeds available memory (%d MB)",
+	},
+	langRU: {
+		"windowTitle":    "Тестер нагрузки памяти/процессора",
+		"testingTab":     "Тестирование",
+		"advancedTab":    "Дополнительно",
+		"logTab":         "Лог",
+		"settingsTab":    "Настройки",
+		"systemStatus":   "Состояние системы:",
+		"totalMemory":    "Всего памяти: %d МБ",
+		"freeMemory":     "Свободно памяти: %d МБ",
+		"testSettings":   "Настройки теста:",
+		"memoryMB":       "Память (МБ)",
+		"cpuThreads":     "Потоки CPU",
+		"alertOnError":   "Оповещать при ошибке",
+		"stopOnError":    "Остановить при ошибке",
+		"testStatus":     "Статус теста:",
+		"time":           "Время: %s",
+		"coverage":       "Покрытие: %s",
+		"errors":         "Ошибки: %d",
+		"start":          "Старт",
+		"stop":           "Стоп",
+		"enableCache":    "Использовать кэш CPU",
+		"rng":            "ГПСЧ:",
+		"experimental":   "Экспериментально:",
+		"stressFPU":      "Нагрузка на FPU",
+		"language":       "Язык",
+		"selectLang":     "Выберите язык",
+		"invalidNumbers": "введите корректные положительные значения памяти и потоков",
+		"memExceed":      "запрошенная память (%d МБ) превышает доступную (%d МБ)",
+	},
+}
+
+func tr(key string, args ...interface{}) string {
+	t := translations[currentLang][key]
+	if len(args) > 0 {
+		return fmt.Sprintf(t, args...)
+	}
+	return t
+}
+
 var (
 	eventsChan    chan logger.Event
 	currentCancel context.CancelFunc
@@ -29,7 +107,7 @@ var (
 func main() {
 
 	myApp := fyneApp.New()
-	w := myApp.NewWindow("Memory/CPU Stress Tester")
+	w := myApp.NewWindow(tr("windowTitle"))
 	w.Resize(fyne.NewSize(600, 400))
 
 	vmStat, _ := mem.VirtualMemory()
@@ -37,11 +115,11 @@ func main() {
 	freeMemMB := vmStat.Available / (1024 * 1024)
 
 	// *** System Status UI elements ***
-	sysStatusLabel := widget.NewLabel("System Status:")
+	sysStatusLabel := widget.NewLabel(tr("systemStatus"))
 	sysStatusLabel.TextStyle = fyne.TextStyle{Bold: true}
 	sysStatusLabel.Refresh()
-	totalMemLabel := widget.NewLabel(fmt.Sprintf("Total Memory: %d MB", totalMemMB))
-	freeMemLabel := widget.NewLabel(fmt.Sprintf("Free Memory: %d MB", freeMemMB))
+	totalMemLabel := widget.NewLabel(fmt.Sprintf(tr("totalMemory"), totalMemMB))
+	freeMemLabel := widget.NewLabel(fmt.Sprintf(tr("freeMemory"), freeMemMB))
 
 	// *** Test Settings UI elements ***
 	memoryEntry := widget.NewEntry()
@@ -52,27 +130,27 @@ func main() {
 	alertCheck := widget.NewCheck("", nil)
 	stopCheck := widget.NewCheck("", nil)
 
-	testSettingsLabel := widget.NewLabel("Test Settings:")
+	testSettingsLabel := widget.NewLabel(tr("testSettings"))
 	testSettingsLabel.TextStyle = fyne.TextStyle{Bold: true}
 	testSettingsLabel.Refresh()
 	testSettingsForm := widget.NewForm(
-		widget.NewFormItem("Memory (MB)", memoryEntry),
-		widget.NewFormItem("CPU Threads", threadsEntry),
-		widget.NewFormItem("Alert on error", alertCheck),
-		widget.NewFormItem("Stop on error", stopCheck),
+		widget.NewFormItem(tr("memoryMB"), memoryEntry),
+		widget.NewFormItem(tr("cpuThreads"), threadsEntry),
+		widget.NewFormItem(tr("alertOnError"), alertCheck),
+		widget.NewFormItem(tr("stopOnError"), stopCheck),
 	)
 
 	// *** Test Status UI elements ***
-	testStatusLabel := widget.NewLabel("Test Status:")
+	testStatusLabel := widget.NewLabel(tr("testStatus"))
 	testStatusLabel.TextStyle = fyne.TextStyle{Bold: true}
 	testStatusLabel.Refresh()
-	timeLabel := widget.NewLabel("Time: 0:00:00:00") // Elapsed test time (days:hh:mm:ss)
-	coverageLabel := widget.NewLabel("Coverage: 0%") // Memory coverage percentage
-	errorLabel := widget.NewLabel("Errors: 0")       // Error count
+	timeLabel := widget.NewLabel(fmt.Sprintf(tr("time"), "0:00:00:00")) // Elapsed test time
+	coverageLabel := widget.NewLabel(fmt.Sprintf(tr("coverage"), "0%")) // Memory coverage percentage
+	errorLabel := widget.NewLabel(fmt.Sprintf(tr("errors"), 0))         // Error count
 
 	// Buttons for starting and stopping the test
-	startButton := widget.NewButton("Start", nil)
-	stopButton := widget.NewButton("Stop", nil)
+	startButton := widget.NewButton(tr("start"), nil)
+	stopButton := widget.NewButton(tr("stop"), nil)
 	stopButton.Disable() // disable Stop initially, as no test is running
 
 	// Layout the Testing tab components vertically
@@ -94,7 +172,7 @@ func main() {
 
 	// *** Advanced tab UI elements ***
 	// Checkbox for "Enable CPU Cache"
-	cacheCheck := widget.NewCheck("Enable CPU Cache", nil)
+	cacheCheck := widget.NewCheck(tr("enableCache"), nil)
 	cacheCheck.SetChecked(true) // default enabled (checked)
 
 	// Dropdown (Select) for RNG mode: Default or Custom
@@ -103,16 +181,16 @@ func main() {
 	rngSelect.SetSelected("Default") // default selection
 
 	// Experimental section: "Stress FPU" checkbox
-	expLabel := widget.NewLabel("Experimental:")
+	expLabel := widget.NewLabel(tr("experimental"))
 	expLabel.TextStyle = fyne.TextStyle{Bold: true}
 	expLabel.Refresh()
-	fpuCheck := widget.NewCheck("Stress FPU (Floating Point Unit)", nil)
+	fpuCheck := widget.NewCheck(tr("stressFPU"), nil)
 	fpuCheck.SetChecked(false) // default off
 
 	// Arrange Advanced tab elements
 	advancedTabContent := container.NewVBox(
 		cacheCheck,
-		container.NewHBox(widget.NewLabel("RNG:"), rngSelect),
+		container.NewHBox(widget.NewLabel(tr("rng")), rngSelect),
 		widget.NewSeparator(),
 		expLabel,
 		fpuCheck,
@@ -131,12 +209,59 @@ func main() {
 	logTabContent := container.NewBorder(nil, nil, nil, nil, logScroll)
 
 	// Create tab items for each tab and assemble them into an AppTabs container
-	testingTab := container.NewTabItem("Testing", testingTabContent)
-	advancedTab := container.NewTabItem("Advanced", advancedTabContent)
-	logTab := container.NewTabItem("Log", logTabContent)
-	tabs := container.NewAppTabs(testingTab, advancedTab, logTab)
+	testingTab := container.NewTabItem(tr("testingTab"), testingTabContent)
+	advancedTab := container.NewTabItem(tr("advancedTab"), advancedTabContent)
+	logTab := container.NewTabItem(tr("logTab"), logTabContent)
+
+	// Settings tab with language selection
+	langOptions := []string{"English", "Русский"}
+	langSelect := widget.NewSelect(langOptions, nil)
+	langSelect.SetSelected("English")
+	settingsForm := widget.NewForm(widget.NewFormItem(tr("language"), langSelect))
+	settingsTabContent := container.NewVBox(settingsForm)
+	settingsTab := container.NewTabItem(tr("settingsTab"), settingsTabContent)
+
+	tabs := container.NewAppTabs(testingTab, advancedTab, logTab, settingsTab)
 	tabs.SetTabLocation(container.TabLocationTop)
 	w.SetContent(tabs)
+
+	applyLanguage := func() {
+		w.SetTitle(tr("windowTitle"))
+		testingTab.Text = tr("testingTab")
+		advancedTab.Text = tr("advancedTab")
+		logTab.Text = tr("logTab")
+		settingsTab.Text = tr("settingsTab")
+
+		sysStatusLabel.SetText(tr("systemStatus"))
+		totalMemLabel.SetText(fmt.Sprintf(tr("totalMemory"), totalMemMB))
+		freeMemLabel.SetText(fmt.Sprintf(tr("freeMemory"), freeMemMB))
+		testSettingsLabel.SetText(tr("testSettings"))
+		testSettingsForm.Items[0].Text = tr("memoryMB")
+		testSettingsForm.Items[1].Text = tr("cpuThreads")
+		testSettingsForm.Items[2].Text = tr("alertOnError")
+		testSettingsForm.Items[3].Text = tr("stopOnError")
+		testSettingsForm.Refresh()
+		testStatusLabel.SetText(tr("testStatus"))
+		startButton.SetText(tr("start"))
+		stopButton.SetText(tr("stop"))
+		cacheCheck.SetText(tr("enableCache"))
+		expLabel.SetText(tr("experimental"))
+		fpuCheck.SetText(tr("stressFPU"))
+		tabs.Refresh()
+	}
+
+	// Language selector handler
+	langSelect.OnChanged = func(value string) {
+		if value == "Русский" {
+			currentLang = langRU
+		} else {
+			currentLang = langEN
+		}
+		applyLanguage()
+	}
+
+	// Apply initial language
+	applyLanguage()
 
 	// Initialize the global event channel and log file for the test logic
 	eventsChan = make(chan logger.Event, 100)
@@ -156,14 +281,14 @@ func main() {
 				case logger.EventError:
 					// Append error message to log and update error count label
 					logger.AppendLogLine(logEntry, event.Message)
-					errorLabel.SetText(fmt.Sprintf("Errors: %d", event.ErrorCount))
+					errorLabel.SetText(fmt.Sprintf(tr("errors"), event.ErrorCount))
 					// If "Alert on error" is enabled, show a pop-up alert for this error
 					if alertCheck.Checked {
 						dialog.ShowError(fmt.Errorf("%s", event.Message), w)
 					}
 				case logger.EventProgress:
 					// Update coverage percentage display
-					coverageLabel.SetText(fmt.Sprintf("Coverage: %.0f%%", event.Coverage))
+					coverageLabel.SetText(fmt.Sprintf(tr("coverage"), fmt.Sprintf("%.2f%%", event.Coverage)))
 				}
 			})
 		}
@@ -175,14 +300,14 @@ func main() {
 		memMB, err1 := strconv.Atoi(memoryEntry.Text)
 		threads, err2 := strconv.Atoi(threadsEntry.Text)
 		if err1 != nil || err2 != nil || memMB <= 0 || threads <= 0 {
-			dialog.ShowError(fmt.Errorf("please enter valid positive numbers for memory and threads"), w)
+			dialog.ShowError(fmt.Errorf(tr("invalidNumbers")), w)
 			return
 		}
 		// Check if requested memory is not more than available memory
 		vmStat, _ = mem.VirtualMemory()
 		availMB := vmStat.Available / (1024 * 1024)
 		if uint64(memMB) > availMB {
-			dialog.ShowError(fmt.Errorf("requested memory (%d MB) exceeds available memory (%d MB)", memMB, availMB), w)
+			dialog.ShowError(fmt.Errorf(tr("memExceed", memMB, availMB)), w)
 			return
 		}
 
@@ -198,9 +323,9 @@ func main() {
 		config.RNGCustom = (rngSelect.Selected == "Custom")
 
 		// Reset UI status fields for a new test run
-		timeLabel.SetText("Time: 0:00:00:00")
-		coverageLabel.SetText("Coverage: 0%")
-		errorLabel.SetText("Errors: 0")
+		timeLabel.SetText(fmt.Sprintf(tr("time"), "0:00:00:00"))
+		coverageLabel.SetText(fmt.Sprintf(tr("coverage"), "0%"))
+		errorLabel.SetText(fmt.Sprintf(tr("errors"), 0))
 
 		// Disable input controls during the test run
 		memoryEntry.Disable()
@@ -235,7 +360,7 @@ func main() {
 				case <-ticker.C:
 					elapsed := time.Since(startTime)
 					fyne.Do(func() {
-						timeLabel.SetText("Time: " + formatDuration(elapsed))
+						timeLabel.SetText(fmt.Sprintf(tr("time"), formatDuration(elapsed)))
 					})
 				}
 			}
@@ -258,9 +383,9 @@ func main() {
 			// Update UI elements back on main thread
 			fyne.Do(func() {
 				// Update free memory label after releasing memory
-				freeMemLabel.SetText(fmt.Sprintf("Free Memory: %d MB", freeMemMB))
+				freeMemLabel.SetText(fmt.Sprintf(tr("freeMemory"), freeMemMB))
 				// Final time label
-				timeLabel.SetText("Time: " + finalDuration)
+				timeLabel.SetText(fmt.Sprintf(tr("time"), finalDuration))
 				// Re-enable controls for next test
 				memoryEntry.Enable()
 				threadsEntry.Enable()
@@ -305,7 +430,7 @@ func main() {
 					if err == nil {
 						freeMemMB := vmStat.Available / (1024 * 1024)
 						fyne.Do(func() {
-							freeMemLabel.SetText(fmt.Sprintf("Free Memory: %d MB", freeMemMB))
+							freeMemLabel.SetText(fmt.Sprintf(tr("freeMemory"), freeMemMB))
 						})
 					}
 				}
@@ -342,7 +467,7 @@ func main() {
 				// Update memory info
 				vmStat, _ := mem.VirtualMemory()
 				freeMemMB := vmStat.Available / (1024 * 1024)
-				freeMemLabel.SetText(fmt.Sprintf("Free Memory: %d MB", freeMemMB))
+				freeMemLabel.SetText(fmt.Sprintf(tr("freeMemory"), freeMemMB))
 
 				// Log final memory state
 				logger.LogEvent(fmt.Sprintf("Test stopped. Free memory: %d MB", freeMemMB), logger.EventLog, eventsChan)
