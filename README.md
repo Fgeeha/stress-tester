@@ -21,6 +21,10 @@ go run .
 
 Launch the application and select the amount of memory and number of threads to stress. Press **Start** to begin the test and **Stop** to end it. Logs are written to `stress_test.log` in the project directory.
 
+### Memory Safety
+
+The tester monitors RAM and swap usage while running. If both become critically low, the stress test stops automatically to prevent crashes. Memory allocation failures are logged and no longer hang the application.
+
 ## GitHub Actions
 
 A workflow file in `.github/workflows/go-build.yml` builds the project automatically on push and pull request for Ubuntu and Windows runners.
