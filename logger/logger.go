@@ -5,8 +5,6 @@ import (
 	"os"
 	"sync"
 	"time"
-
-	"fyne.io/fyne/v2/widget"
 )
 
 var (
@@ -58,17 +56,6 @@ func LogToFile(message string) {
 	file.WriteString(fmt.Sprintf("[%s] %s\n", timestamp, message))
 }
 
-// AppendLogLine adds a line to the UI log widget
-func AppendLogLine(logEntry *widget.Entry, message string) {
-	// Clear the log if it's empty
-	if logEntry.Text == "" {
-		logEntry.SetText(message)
-	} else {
-		logEntry.SetText(logEntry.Text + "\n" + message)
-	}
-	logEntry.Refresh()
-}
-
 // LogEvent sends an event to the UI and log file
 func LogEvent(message string, eventType int, eventsChan chan Event) {
 	LogToFile(message)
@@ -91,7 +78,11 @@ func LogError(message string, errorCount int, eventsChan chan Event) {
 		Message:    message,
 		ErrorCount: errorCount,
 	}
-	eventsChan <- event
+	select {
+	case eventsChan <- event:
+	default:
+		LogToFile("Warning: Event channel is full, error dropped: " + message)
+	}
 }
 
 // LogProgress sends a progress event to the UI
@@ -100,5 +91,9 @@ func LogProgress(coverage float64, eventsChan chan Event) {
 		Type:     EventProgress,
 		Coverage: coverage,
 	}
-	eventsChan <- event
+	select {
+	case eventsChan <- event:
+	default:
+		LogToFile("Warning: Event channel is full, progress update dropped")
+	}
 }
