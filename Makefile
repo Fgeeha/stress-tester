@@ -3,6 +3,7 @@ BUILD_DIR := build
 GO ?= go
 GOFLAGS ?=
 
+.DEFAULT_GOAL := help
 .PHONY: help fmt test build run tidy update clean audit
 
 help: ## Show available targets
